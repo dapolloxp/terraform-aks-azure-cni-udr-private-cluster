@@ -1,5 +1,5 @@
 .DS_Store
-cyclecloud.*
+**/cyclecloud.*
 .terraform/*
 *.tfvars
 terraform.tfstate

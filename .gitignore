@@ -5,3 +5,5 @@
 terraform.tfstate
 terraform.tfstate.backup
 *.yaml
+.terraform.tfstate.lock.info
+dapolina-MSTest.tfvars.ollld

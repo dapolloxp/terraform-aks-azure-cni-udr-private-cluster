@@ -84,34 +84,13 @@ EOS
     when = create
     command = <<EOF
      aksid=$(az aks show -g ${azurerm_resource_group.aks_rg.name} -n ${azurerm_kubernetes_cluster.aks_c.name} --query identityProfile.kubeletidentity.clientId -otsv);
-     aks-vmss-rg=$(az group show --name ${azurerm_kubernetes_cluster.aks_c.resource_group_name} --query id --output tsv)
-     az role assignment create --role "Managed Identity Operator" --assignee $aksid --scope ${data.azurerm_resource_group.vnet_rg.id};
-     az role assignment create --role "Virtual Machine Contributor" --assignee $aksid --scope ${data.azurerm_resource_group.vnet_rg.id}
-     az role assignment create --role "Virtual Machine Contributor" --assignee $aksid --scope $aks-vmss-rg
+     aksvmssrg=$(az group show --name ${azurerm_kubernetes_cluster.aks_c.node_resource_group} --query id --output tsv);     
+     az role assignment create --role "Virtual Machine Contributor" --assignee $aksid --scope ${data.azurerm_resource_group.vnet_rg.id};
+     az role assignment create --role "Virtual Machine Contributor" --assignee $aksid --scope $aksvmssrg;
+     az role assignment create --role "Managed Identity Operator" --assignee $aksid --scope $aksvmssrg
+     
     EOF
   }
-
-  provisioner "local-exec" {
-    when = create
-    command = "echo $aksid"
-  
-  }
-  #provisioner "local-exec" {
-  #  when = create
-  #  command = "az role assignment create --role "Managed Identity Operator" --assignee $aksid --scope ${azurerm_resource_group.vnet_rg.id}"  
-  #}
-  #provisioner "local-exec" {
-  #  when = create
-  #  command = "az role assignment create --role "Virtual Machine Operator" --assignee $aksid --scope ${azurerm_resource_group.vnet_rg.id}"  
-  #}
-  #provisioner "local-exec" {
-  #  when = create
-  #  command = "az role assignment create --role "Virtual Machine Operator" --assignee $aksid --scope ${azurerm_resource_group.vnet_rg.id}"  
-  #}
-  #provisioner "local-exec" {
-  #  when = create
-  #  command = "az role assignment create --role "Virtual Machine Operator" --assignee $aksid --scope ${azurerm_resource_group.vnet_rg.id}"  
-  #}
 
   network_profile  {
     network_plugin = "azure"
@@ -135,34 +114,10 @@ EOS
   }
 }
 
-/*
-data "azurerm_resource_group" "aks_node_rg" {
-  name = azurerm_kubernetes_cluster.aks_c.node_resource_group.name
-}
-output "node_id" {
-  value = azurerm_kubernetes_cluster.aks_c.node_resource_group.name
-}*/
-
 resource "azurerm_user_assigned_identity" "mi_identity" {
   resource_group_name = azurerm_kubernetes_cluster.aks_c.node_resource_group
   location            = azurerm_resource_group.aks_rg.location
   name = "${var.prefix}-ui"
-}
-
-resource "azurerm_kubernetes_cluster_node_pool" "spotpool" {
-  name                  = "spot"
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks_c.id
-  vm_size               = "Standard_D32s_v3"
-  node_count            = 1
-  priority              = "Spot"
-  eviction_policy       = "Delete"
-  spot_max_price        = 0.5 # note: this is the "maximum" price
-  node_labels = {
-    "kubernetes.azure.com/scalesetpriority" = "spot"
-  }
-  node_taints = [
-    "kubernetes.azure.com/scalesetpriority=spot:NoSchedule"
-  ]
 }
 
 data "azurerm_subscription" "current_sub" {
@@ -180,16 +135,6 @@ resource "azurerm_role_assignment" "aks_rbac_assignment" {
   principal_id         = azurerm_kubernetes_cluster.aks_c.identity[0].principal_id
 }
 
-/*resource "azurerm_role_assignment" "managed_identity_operator" {
-  scope               = data.azure_rm_resource_group.aks_node_rg.id
-  role_definition_name = "Contributor"
-  principal_id = $aksid
-}*/
-/*
-output "aks_id2" {
-  value = azurerm_kubernetes_cluster.aks_c.identity[0].principal_id
-}
-
 output "aks_id" {
   value = azurerm_kubernetes_cluster.aks_c.identity
-}*/
+}
